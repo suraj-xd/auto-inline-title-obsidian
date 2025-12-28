@@ -92,7 +92,14 @@ export default class AutoTitlePlugin extends Plugin {
 	 * Generate title suggestions for a file and show selection modal
 	 */
 	async generateTitleForFile(file: TFile, force = false): Promise<void> {
+		// Prevent duplicate API calls
+		if (this.contentMonitor.isInProgress(file.path)) {
+			return;
+		}
+
 		try {
+			// Mark as in progress to prevent duplicate triggers
+			this.contentMonitor.markInProgress(file.path);
 			this.statusIndicator.setProcessing();
 
 			const content = await this.app.vault.cachedRead(file);
@@ -103,6 +110,7 @@ export default class AutoTitlePlugin extends Plugin {
 					new Notice('Not enough content to generate a title. Add more text first.');
 				}
 				this.statusIndicator.setIdle();
+				this.contentMonitor.clearProcessed(file.path); // Clear in-progress flag
 				return;
 			}
 
@@ -114,10 +122,14 @@ export default class AutoTitlePlugin extends Plugin {
 					new Notice('Could not generate title suggestions. Try adding more content.');
 				}
 				this.statusIndicator.setIdle();
+				this.contentMonitor.clearProcessed(file.path); // Clear in-progress flag
 				return;
 			}
 
 			this.statusIndicator.setIdle();
+
+			// Mark as processed BEFORE showing modal - prevents re-triggering if user dismisses
+			this.contentMonitor.markAsProcessed(file.path);
 
 			// Show modal for user to select a title
 			new TitleSuggestionModal(this.app, suggestions, async (selectedTitle) => {
@@ -126,6 +138,7 @@ export default class AutoTitlePlugin extends Plugin {
 		} catch (error) {
 			const errorMessage = (error as Error).message;
 			this.statusIndicator.setError(errorMessage);
+			this.contentMonitor.clearProcessed(file.path); // Clear in-progress flag on error
 
 			if (this.settings.showNotifications) {
 				new Notice(`Auto Title Error: ${errorMessage}`);

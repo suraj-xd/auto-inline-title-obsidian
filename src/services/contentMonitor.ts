@@ -5,6 +5,7 @@ import { UntitledDetector } from './untitledDetector';
 export class ContentMonitor {
 	private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
 	private processedFiles: Set<string> = new Set();
+	private inProgressFiles: Set<string> = new Set();
 	private untitledDetector: UntitledDetector;
 
 	constructor(
@@ -40,8 +41,13 @@ export class ContentMonitor {
 			return;
 		}
 
-		// Skip if already processed (title already generated)
+		// Skip if already processed (title already generated or user dismissed)
 		if (this.processedFiles.has(file.path)) {
+			return;
+		}
+
+		// Skip if generation is already in progress for this file
+		if (this.inProgressFiles.has(file.path)) {
 			return;
 		}
 
@@ -82,6 +88,13 @@ export class ContentMonitor {
 			}
 
 			const content = await this.plugin.app.vault.cachedRead(tFile);
+
+			// Skip if frontmatter already has a title
+			if (this.hasFrontmatterTitle(content)) {
+				this.processedFiles.add(file.path);
+				return;
+			}
+
 			const contentWithoutFrontmatter = this.stripFrontmatter(content);
 
 			if (!this.meetsThreshold(contentWithoutFrontmatter)) {
@@ -93,6 +106,20 @@ export class ContentMonitor {
 		} catch (error) {
 			console.error('Auto Title: Error checking threshold', error);
 		}
+	}
+
+	/**
+	 * Check if content has a title in frontmatter
+	 */
+	private hasFrontmatterTitle(content: string): boolean {
+		const frontmatterMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+		if (!frontmatterMatch) {
+			return false;
+		}
+		// Check if frontmatter contains a title field with a non-empty value
+		const frontmatter = frontmatterMatch[1];
+		const titleMatch = frontmatter.match(/^title:\s*(.+)$/m);
+		return titleMatch !== null && titleMatch[1].trim().length > 0;
 	}
 
 	/**
@@ -112,10 +139,11 @@ export class ContentMonitor {
 	}
 
 	/**
-	 * Mark a file as processed (title already generated)
+	 * Mark a file as processed (title already generated or user dismissed)
 	 */
 	markAsProcessed(filePath: string): void {
 		this.processedFiles.add(filePath);
+		this.inProgressFiles.delete(filePath);
 	}
 
 	/**
@@ -123,6 +151,21 @@ export class ContentMonitor {
 	 */
 	clearProcessed(filePath: string): void {
 		this.processedFiles.delete(filePath);
+		this.inProgressFiles.delete(filePath);
+	}
+
+	/**
+	 * Mark a file as currently being processed (API call in flight)
+	 */
+	markInProgress(filePath: string): void {
+		this.inProgressFiles.add(filePath);
+	}
+
+	/**
+	 * Check if a file is currently being processed
+	 */
+	isInProgress(filePath: string): boolean {
+		return this.inProgressFiles.has(filePath);
 	}
 
 	/**
@@ -138,5 +181,6 @@ export class ContentMonitor {
 	stop(): void {
 		this.debounceTimers.forEach((timer) => clearTimeout(timer));
 		this.debounceTimers.clear();
+		this.inProgressFiles.clear();
 	}
 }
