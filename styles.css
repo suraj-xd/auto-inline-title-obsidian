@@ -1,0 +1,29 @@
+/* Auto Title Plugin Styles */
+
+.auto-title-modal .suggestion-item {
+	padding: 8px 12px;
+}
+
+.auto-title-modal .suggestion-item .suggestion-content {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.auto-title-modal .suggestion-item .suggestion-title {
+	font-weight: 500;
+}
+
+.auto-title-modal .suggestion-item .suggestion-note {
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.auto-title-custom {
+	font-style: italic;
+	color: var(--text-accent);
+}
+
+.auto-title-status-processing {
+	color: var(--text-accent);
+}
