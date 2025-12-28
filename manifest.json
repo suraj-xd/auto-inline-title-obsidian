@@ -3,7 +3,7 @@
 	"name": "Auto Inline",
 	"version": "1.0.0",
 	"minAppVersion": "1.0.0",
-	"description": "Automatically generate note titles using AI based on your content",
+	"description": "Automatically generate note titles using AI based on your content.",
 	"author": "Suraj",
 	"authorUrl": "",
 	"isDesktopOnly": false
